@@ -6,6 +6,7 @@ from refined.data_types.base_types import Entity, Span
 from refined.doc_preprocessing.preprocessor import Preprocessor
 from refined.resource_management.resource_manager import ResourceManager
 from refined.doc_preprocessing.wikidata_mapper import WikidataMapper
+from refined.dataset_reading.entity_linking.elevant_article_parser import article_from_json
 
 
 class Datasets:
@@ -17,6 +18,66 @@ class Datasets:
         self.preprocessor = preprocessor
         self.datasets_to_files = resource_manager.get_dataset_files()
         self.wikidata_mapper = wikidata_mapper
+
+    def get_elevant_docs(self,
+                          filename: str,
+                          include_spans: bool = True,
+                          include_gold_label: bool = True,
+                          filter_not_in_kb: bool = True) -> Iterable[Doc]:
+        with open(filename, "r") as f:
+            for line in f:
+                spans = None
+                if include_spans:
+                    article = article_from_json(line)
+                    spans = []
+                    md_spans = []
+                    for span, entity_mention in article.entity_mentions.items():
+                        md_spans.append(
+                            Span(
+                                start=span[0],
+                                ln=span[1] - span[0],
+                                text=article.text[span[0]: span[1]],
+                                coarse_type="MENTION"
+                            )
+                        )
+                        qcode = entity_mention.entity_id
+                        if filter_not_in_kb and (
+                                qcode is None or self.wikidata_mapper.wikidata_qcode_is_disambiguation_page(qcode)
+                        ):
+                            continue
+
+                        if not filter_not_in_kb and qcode is None:
+                            qcode = "Q0"
+
+                        if include_gold_label:
+                            wiki_title = self.preprocessor.qcode_to_wiki.get(qcode) if self.preprocessor.qcode_to_wiki is not None else None
+                            spans.append(
+                                Span(
+                                    start=span[0],
+                                    ln=span[1] - span[0],
+                                    text=article.text[span[0]: span[1]],
+                                    gold_entity=Entity(wikidata_entity_id=qcode, wikipedia_entity_title=wiki_title),
+                                    coarse_type="MENTION"
+                                )
+                            )
+                        else:
+                            spans.append(
+                                Span(
+                                    start=span[0],
+                                    ln=span[1] - span[0],
+                                    text=article.text[span[0]: span[1]],
+                                    coarse_type="MENTION"
+                                )
+                            )
+                if spans is None:
+                    yield Doc.from_text(
+                        text=article.text,
+                        preprocessor=self.preprocessor
+                    )
+                else:
+                    yield Doc.from_text_with_spans(
+                        text=article.text, spans=spans, md_spans=md_spans, preprocessor=self.preprocessor
+                    )
 
     def get_aida_docs(
             self,

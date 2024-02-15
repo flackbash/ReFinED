@@ -33,17 +33,40 @@ def main():
 
     datasets = get_datasets_obj(preprocessor=refined.preprocessor)
 
-    evaluation_dataset_name_to_docs = {
-        "AIDA": list(datasets.get_aida_docs(
-            split="dev",
-            include_gold_label=True,
-            filter_not_in_kb=True,
-            include_spans=True,
-        ))
-    }
+    if fine_tuning_args.evaluation_file is not None:
+        LOG.info(f"Using dataset from {fine_tuning_args.evaluation_file} for evaluation.")
+        evaluation_dataset_name_to_docs = {
+            "custom_eval_dataset": list(datasets.get_elevant_docs(
+                filename=fine_tuning_args.evaluation_file,
+                include_gold_label=True,
+                include_spans=True,
+                filter_not_in_kb=True
+            ))
+        }
+    else:
+        LOG.info(f"Using default AIDA dataset for evaluation.")
+        evaluation_dataset_name_to_docs = {
+            "AIDA": list(datasets.get_aida_docs(
+                split="dev",
+                include_gold_label=True,
+                filter_not_in_kb=True,
+                include_spans=True,
+            ))
+        }
+
+    if fine_tuning_args.training_file is not None:
+        LOG.info(f"Using dataset from {fine_tuning_args.training_file} for fine-tuning.")
+        train_docs = list(datasets.get_elevant_docs(
+                                   filename=fine_tuning_args.training_file,
+                                   include_gold_label=True))
+    else:
+        LOG.info(f"Using default AIDA dataset for fine-tuning.")
+        train_docs = list(datasets.get_aida_docs(split="train",
+                                                 include_gold_label=True))
+
     start_fine_tuning_task(refined=refined,
                            fine_tuning_args=fine_tuning_args,
-                           train_docs=list(datasets.get_aida_docs(split="train", include_gold_label=True)),
+                           train_docs=train_docs,
                            evaluation_dataset_name_to_docs=evaluation_dataset_name_to_docs)
 
 

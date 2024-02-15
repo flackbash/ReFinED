@@ -29,6 +29,8 @@ class FineTuningArgs(TrainingArgs):
     use_precomputed_descriptions: bool = False
     output_dir: str = 'fine_tuned_models'
     restore_model_path: Optional[str] = None
+    training_file: Optional[str] = None
+    evaluation_file: Optional[str] = None
 
     # This can be either wikipedia_model or wikipedia_model_with_numbers
     # `wikipedia_model` only detects named entities ensure training `span` have `coarse_type=MENTION`
@@ -168,6 +170,22 @@ def parse_fine_tuning_args() -> FineTuningArgs:
         default=fine_tuning_args.output_dir,
         type=str,
         help="output_dir this is the relative or absolute file path where the fine-tuned model will be saved.",
+    )
+    parser.add_argument(
+        "--training_file",
+        default=fine_tuning_args.training_file,
+        type=str,
+        help="""Name of the file that will be used for fine-tuning. If none is given, the default
+                AIDA dataset is used. The file should be in the ELEVANT JSONL format. Entity mentions will be used as
+                groundtruth labels.""",
+    )
+    parser.add_argument(
+        "--evaluation_file",
+        default=fine_tuning_args.evaluation_file,
+        type=str,
+        help="""Name of the file that will be used for the evaluation. If none is given, the default
+                AIDA dataset is used. The file should be in the ELEVANT JSONL format. Entity mentions will be used as
+                groundtruth labels.""",
     )
     parser.add_argument(
         "--model_name",
